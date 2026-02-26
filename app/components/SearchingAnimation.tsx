@@ -61,7 +61,7 @@ export function SearchingAnimation({ query, onComplete }: SearchingAnimationProp
       transition={{ duration: 0.6, ease: "easeInOut" }}
       className="fixed inset-0 z-50 overflow-hidden"
       style={{
-        background: "rgba(8, 8, 8, 0.97)",
+        background: "rgba(18, 14, 10, 0.97)",
         backdropFilter: "blur(40px)",
       }}
     >
@@ -81,7 +81,7 @@ export function SearchingAnimation({ query, onComplete }: SearchingAnimationProp
                 opacity: 0,
               }}
               animate={{
-                opacity: [0, 0.12, 0.08, 0],
+                opacity: [0, 0.32, 0.18, 0],
                 y: [`${randomY}vh`, `${(randomY - 15) % 100}vh`],
               }}
               transition={{
@@ -94,8 +94,8 @@ export function SearchingAnimation({ query, onComplete }: SearchingAnimationProp
               style={{
                 fontFamily: "var(--font-body)",
                 fontWeight: 300,
-                fontSize: `${0.75 + (index % 4) * 0.25}rem`,
-                color: "rgba(255,255,255,0.5)",
+                fontSize: `${0.8 + (index % 4) * 0.28}rem`,
+                color: "rgba(255,255,255,0.78)",
               }}
             >
               {term}

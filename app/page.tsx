@@ -112,20 +112,49 @@ const placeholderExamples = [
 const ease = [0.25, 0.1, 0, 1] as const;
 
 /* ─── Light trail definitions ─── */
-// S-curves from back-left to front-right, traversing the full screen.
-// Trails start thin/faint (distance) and end thick/bright (foreground).
-// Red and blue run nearly parallel, like cars on the same road.
+// Elegant, architectural arches in a Euclidean style.
+// All curves share a similar rhythm, like repeated arcades in classic French architecture.
 const trails = [
-  // Red — main
-  { d: "M -100 350 C 250 320, 500 500, 750 580 S 1200 520, 1450 620 C 1600 670, 1800 800, 2100 900", color: "#e85a30", w: 3.5, glow: 20, delay: 0 },
-  // Red — parallel accent
-  { d: "M -100 370 C 250 340, 500 520, 750 600 S 1200 540, 1450 640 C 1600 690, 1800 820, 2100 920", color: "#f08050", w: 1.5, glow: 12, delay: 0.05 },
-  // Red — thin inner
-  { d: "M -100 340 C 250 310, 500 490, 750 570 S 1200 510, 1450 610 C 1600 660, 1800 790, 2100 890", color: "#d04020", w: 1, glow: 8, delay: 0.02 },
-  // Blue — main (parallel, slightly below)
-  { d: "M -100 400 C 250 370, 500 550, 750 630 S 1200 570, 1450 670 C 1600 720, 1800 850, 2100 950", color: "#4ac8f0", w: 2.5, glow: 18, delay: 0.1 },
-  // Blue — thin accent
-  { d: "M -100 420 C 250 390, 500 570, 750 650 S 1200 590, 1450 690 C 1600 740, 1800 870, 2100 970", color: "#80d8ff", w: 1, glow: 10, delay: 0.14 },
+  // Main arcade line
+  {
+    d: "M -120 620 C 160 520, 360 520, 640 620 S 1120 720, 1480 620 S 1920 520, 2160 620",
+    color: "#4B3A26",
+    w: 3.4,
+    glow: 20,
+    delay: 0,
+  },
+  // Slightly higher parallel arch
+  {
+    d: "M -120 590 C 160 490, 360 490, 640 590 S 1120 690, 1480 590 S 1920 490, 2160 590",
+    color: "#6A4F33",
+    w: 2.2,
+    glow: 14,
+    delay: 0.05,
+  },
+  // Slightly lower, darker arch for depth
+  {
+    d: "M -120 650 C 160 550, 360 550, 640 650 S 1120 750, 1480 650 S 1920 550, 2160 650",
+    color: "#3A2A1B",
+    w: 1.4,
+    glow: 10,
+    delay: 0.02,
+  },
+  // Upper, lighter accent arch
+  {
+    d: "M -120 560 C 160 460, 360 460, 640 560 S 1120 660, 1480 560 S 1920 460, 2160 560",
+    color: "#8A6743",
+    w: 2.1,
+    glow: 16,
+    delay: 0.08,
+  },
+  // Thin highlight near the top, like a cornice line
+  {
+    d: "M -120 540 C 160 440, 360 440, 640 540 S 1120 640, 1480 540 S 1920 440, 2160 540",
+    color: "#C59A6B",
+    w: 1.1,
+    glow: 11,
+    delay: 0.12,
+  },
 ];
 
 function LightTrails() {
@@ -258,6 +287,8 @@ export default function Page() {
   const [showResults, setShowResults] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isFocused, setIsFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+  const howItWorksRef = useRef<HTMLDivElement | null>(null);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -275,11 +306,29 @@ export default function Page() {
     setAgents([]);
     setSearchQuery("");
   };
+  
+  const scrollToSearch = () => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollToHowItWorks = () => {
+    if (howItWorksRef.current) {
+      howItWorksRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
 
   const sortedAgents = [...agents].sort((a, b) => a.rank - b.rank);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#080808]">
+    <div className="min-h-screen relative overflow-hidden bg-[#120e0a]">
       <AnimatePresence>
         {isSearching && (
           <SearchingAnimation
@@ -299,7 +348,7 @@ export default function Page() {
             <header
               className="sticky top-0 z-40 backdrop-blur-xl"
               style={{
-                background: "rgba(8, 8, 8, 0.8)",
+                background: "rgba(18, 14, 10, 0.9)",
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
               }}
             >
@@ -437,8 +486,10 @@ export default function Page() {
                   transition={{ duration: 0.8, delay: 0.1, ease }}
                   className="flex items-center gap-8"
                 >
-                  <span
-                    className="hidden md:inline text-sm cursor-pointer hover:opacity-80 transition-opacity duration-300"
+                  <button
+                    type="button"
+                    onClick={scrollToHowItWorks}
+                    className="hidden md:inline text-sm cursor-pointer hover:opacity-80 transition-opacity duration-300 bg-transparent border-none p-0"
                     style={{
                       fontFamily: "var(--font-body)",
                       fontWeight: 300,
@@ -446,15 +497,17 @@ export default function Page() {
                     }}
                   >
                     How it works
-                  </span>
+                  </button>
                   <button
-                    className="text-sm px-5 py-2.5 rounded-full backdrop-blur-md hover:bg-white/15 transition-all duration-300"
+                    type="button"
+                    onClick={scrollToSearch}
+                    className="text-sm px-5 py-2.5 rounded-full backdrop-blur-md hover:brightness-110 transition-all duration-300"
                     style={{
                       fontFamily: "var(--font-body)",
                       fontWeight: 300,
-                      color: "rgba(255,255,255,0.9)",
-                      background: "rgba(255,255,255,0.08)",
-                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "rgba(255,255,255,0.94)",
+                      background: "#4B3A26",
+                      border: "1px solid rgba(0,0,0,0.35)",
                     }}
                   >
                     Get Started
@@ -466,7 +519,7 @@ export default function Page() {
             {/* Hero Content */}
             <main className="relative z-10">
               <section className="min-h-screen flex flex-col items-center justify-center px-6">
-                <div className="w-full max-w-4xl text-center">
+                <div ref={searchRef} className="w-full max-w-4xl text-center">
                   {/* Headline */}
                   <motion.div
                     initial={{ opacity: 0, y: 40 }}
@@ -572,7 +625,7 @@ export default function Page() {
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl transition-all duration-300"
                         style={{
                           background: searchQuery.trim()
-                            ? "rgba(255,255,255,0.15)"
+                            ? "#4B3A26"
                             : "rgba(255,255,255,0.04)",
                           cursor: searchQuery.trim()
                             ? "pointer"
@@ -583,7 +636,7 @@ export default function Page() {
                           className="w-4 h-4"
                           style={{
                             color: searchQuery.trim()
-                              ? "rgba(255,255,255,0.9)"
+                              ? "rgba(255,255,255,0.96)"
                               : "rgba(255,255,255,0.15)",
                           }}
                         />
@@ -655,8 +708,9 @@ export default function Page() {
 
               {/* ═══ BELOW THE FOLD — Features ═══ */}
               <section
+                ref={howItWorksRef}
                 className="relative py-32 px-6"
-                style={{ background: "#080808" }}
+                style={{ background: "#120e0a" }}
               >
                 <div className="max-w-5xl mx-auto">
                   <motion.div
@@ -749,7 +803,7 @@ export default function Page() {
                 className="py-12 px-6"
                 style={{
                   borderTop: "1px solid rgba(255,255,255,0.05)",
-                  background: "#080808",
+                  background: "#120e0a",
                 }}
               >
                 <div className="max-w-5xl mx-auto flex items-center justify-between">
