@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { AgentCard, Agent } from "./components/AgentCard";
 import { SearchingAnimation } from "./components/SearchingAnimation";
-import { ArrowRight, Search, Layers, Zap, Shield } from "lucide-react";
+import { ArrowRight, Search, Layers, Zap, Shield, ExternalLink } from "lucide-react";
 
 const mockAgents: Agent[] = [
   {
@@ -159,13 +160,28 @@ const trails = [
 
 function LightTrails() {
   const [drawn, setDrawn] = useState(false);
-  useEffect(() => { requestAnimationFrame(() => setDrawn(true)); }, []);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setDrawn(true));
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Parallax: trails shift and scale subtly on scroll
+  const t = Math.min(scrollY / 800, 1);
 
   return (
     <svg
       viewBox="0 0 1920 1080"
       preserveAspectRatio="xMidYMid slice"
       className="absolute inset-0 w-full h-full"
+      style={{
+        transform: `translateY(${t * -60}px) scale(${1 + t * 0.08})`,
+        opacity: 1 - t * 0.6,
+        transition: "transform 0.3s ease-out, opacity 0.3s ease-out",
+      }}
     >
       <defs>
         {trails.map((_, i) => (
@@ -281,8 +297,55 @@ function TypingPlaceholder() {
   );
 }
 
-export default function Page() {
+function TrapezoidNotch() {
+  const ref = useRef<SVGSVGElement>(null);
+  const [opacity, setOpacity] = useState(1);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const section = el.closest("section");
+      if (!section) return;
+      const rect = section.getBoundingClientRect();
+      // Fade from 1→0 as section top goes from bottom of viewport to top
+      const t = Math.max(0, Math.min(1, 1 - rect.top / window.innerHeight));
+      setOpacity(1 - t);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <svg
+      ref={ref}
+      className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+      width="200" height="32" viewBox="0 0 200 32"
+      fill="none"
+      style={{ opacity, transition: "opacity 0.15s ease-out" }}
+    >
+      <defs>
+        <linearGradient id="trapFill" x1="100" y1="0" x2="100" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M 30 32 L 60 0 L 140 0 L 170 32"
+        fill="url(#trapFill)"
+        stroke="rgba(255,255,255,0.07)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
+function PageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -290,8 +353,19 @@ export default function Page() {
   const searchRef = useRef<HTMLDivElement | null>(null);
   const howItWorksRef = useRef<HTMLDivElement | null>(null);
 
+  // Hydrate from ?q= on mount
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !showResults && !isSearching) {
+      setSearchQuery(q);
+      setSubmittedQuery(q);
+      setIsSearching(true);
+    }
+  }, [searchParams]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
+    setSubmittedQuery(searchQuery.trim());
     setIsSearching(true);
   };
 
@@ -299,12 +373,14 @@ export default function Page() {
     setAgents(mockAgents);
     setIsSearching(false);
     setShowResults(true);
+    router.push(`/?q=${encodeURIComponent(submittedQuery)}`, { scroll: false });
   };
 
   const handleNewSearch = () => {
     setShowResults(false);
     setAgents([]);
     setSearchQuery("");
+    router.push("/", { scroll: false });
   };
   
   const scrollToSearch = () => {
@@ -332,7 +408,7 @@ export default function Page() {
       <AnimatePresence>
         {isSearching && (
           <SearchingAnimation
-            query={searchQuery}
+            query={submittedQuery}
             onComplete={handleSearchComplete}
           />
         )}
@@ -428,7 +504,7 @@ export default function Page() {
                 >
                   Results for{" "}
                   <span style={{ fontStyle: "italic" }}>
-                    &ldquo;{searchQuery}&rdquo;
+                    &ldquo;{submittedQuery}&rdquo;
                   </span>
                 </h2>
                 <p
@@ -498,20 +574,34 @@ export default function Page() {
                   >
                     How it works
                   </button>
-                  <button
-                    type="button"
-                    onClick={scrollToSearch}
-                    className="text-sm px-5 py-2.5 rounded-full backdrop-blur-md hover:brightness-110 transition-all duration-300"
+                  <a
+                    href="/research.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1 text-sm hover:opacity-80 transition-opacity duration-300"
                     style={{
                       fontFamily: "var(--font-body)",
                       fontWeight: 300,
-                      color: "rgba(255,255,255,0.94)",
-                      background: "#4B3A26",
-                      border: "1px solid rgba(0,0,0,0.35)",
+                      color: "rgba(255,255,255,0.45)",
                     }}
                   >
-                    Get Started
-                  </button>
+                    Our Research
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a
+                    href="https://github.com/AgentsSearch"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1 text-sm hover:opacity-80 transition-opacity duration-300"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    GitHub
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </motion.div>
               </div>
             </nav>
@@ -709,9 +799,12 @@ export default function Page() {
               {/* ═══ BELOW THE FOLD — Features ═══ */}
               <section
                 ref={howItWorksRef}
+                id="how-it-works"
                 className="relative py-32 px-6"
                 style={{ background: "#120e0a" }}
               >
+                {/* Trapeze notch peeking above */}
+                <TrapezoidNotch />
                 <div className="max-w-5xl mx-auto">
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -834,5 +927,13 @@ export default function Page() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <PageContent />
+    </Suspense>
   );
 }
