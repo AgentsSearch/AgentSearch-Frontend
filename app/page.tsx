@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { AgentCard, Agent } from "./components/AgentCard";
 import { SearchingAnimation } from "./components/SearchingAnimation";
@@ -130,13 +131,28 @@ const trails = [
 
 function LightTrails() {
   const [drawn, setDrawn] = useState(false);
-  useEffect(() => { requestAnimationFrame(() => setDrawn(true)); }, []);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setDrawn(true));
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Parallax: trails shift and scale subtly on scroll
+  const t = Math.min(scrollY / 800, 1);
 
   return (
     <svg
       viewBox="0 0 1920 1080"
       preserveAspectRatio="xMidYMid slice"
       className="absolute inset-0 w-full h-full"
+      style={{
+        transform: `translateY(${t * -60}px) scale(${1 + t * 0.08})`,
+        opacity: 1 - t * 0.6,
+        transition: "transform 0.3s ease-out, opacity 0.3s ease-out",
+      }}
     >
       <defs>
         {trails.map((_, i) => (
@@ -252,15 +268,30 @@ function TypingPlaceholder() {
   );
 }
 
-export default function Page() {
+function PageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isFocused, setIsFocused] = useState(false);
 
+  // Hydrate from ?q= on mount
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !showResults && !isSearching) {
+      setSearchQuery(q);
+      setSubmittedQuery(q);
+      setIsSearching(true);
+    }
+  }, [searchParams]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
+    setSubmittedQuery(searchQuery.trim());
     setIsSearching(true);
   };
 
@@ -268,12 +299,14 @@ export default function Page() {
     setAgents(mockAgents);
     setIsSearching(false);
     setShowResults(true);
+    router.push(`/?q=${encodeURIComponent(submittedQuery)}`, { scroll: false });
   };
 
   const handleNewSearch = () => {
     setShowResults(false);
     setAgents([]);
     setSearchQuery("");
+    router.push("/", { scroll: false });
   };
 
   const sortedAgents = [...agents].sort((a, b) => a.rank - b.rank);
@@ -283,7 +316,7 @@ export default function Page() {
       <AnimatePresence>
         {isSearching && (
           <SearchingAnimation
-            query={searchQuery}
+            query={submittedQuery}
             onComplete={handleSearchComplete}
           />
         )}
@@ -379,7 +412,7 @@ export default function Page() {
                 >
                   Results for{" "}
                   <span style={{ fontStyle: "italic" }}>
-                    &ldquo;{searchQuery}&rdquo;
+                    &ldquo;{submittedQuery}&rdquo;
                   </span>
                 </h2>
                 <p
@@ -780,5 +813,13 @@ export default function Page() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <PageContent />
+    </Suspense>
   );
 }
