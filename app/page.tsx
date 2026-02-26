@@ -111,6 +111,77 @@ const placeholderExamples = [
 
 const ease = [0.25, 0.1, 0, 1] as const;
 
+/* ─── Light trail definitions ─── */
+// S-curves from back-left to front-right, traversing the full screen.
+// Trails start thin/faint (distance) and end thick/bright (foreground).
+// Red and blue run nearly parallel, like cars on the same road.
+const trails = [
+  // Red — main
+  { d: "M -100 350 C 250 320, 500 500, 750 580 S 1200 520, 1450 620 C 1600 670, 1800 800, 2100 900", color: "#e85a30", w: 3.5, glow: 20, delay: 0 },
+  // Red — parallel accent
+  { d: "M -100 370 C 250 340, 500 520, 750 600 S 1200 540, 1450 640 C 1600 690, 1800 820, 2100 920", color: "#f08050", w: 1.5, glow: 12, delay: 0.05 },
+  // Red — thin inner
+  { d: "M -100 340 C 250 310, 500 490, 750 570 S 1200 510, 1450 610 C 1600 660, 1800 790, 2100 890", color: "#d04020", w: 1, glow: 8, delay: 0.02 },
+  // Blue — main (parallel, slightly below)
+  { d: "M -100 400 C 250 370, 500 550, 750 630 S 1200 570, 1450 670 C 1600 720, 1800 850, 2100 950", color: "#4ac8f0", w: 2.5, glow: 18, delay: 0.1 },
+  // Blue — thin accent
+  { d: "M -100 420 C 250 390, 500 570, 750 650 S 1200 590, 1450 690 C 1600 740, 1800 870, 2100 970", color: "#80d8ff", w: 1, glow: 10, delay: 0.14 },
+];
+
+function LightTrails() {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => { requestAnimationFrame(() => setDrawn(true)); }, []);
+
+  return (
+    <svg
+      viewBox="0 0 1920 1080"
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 w-full h-full"
+    >
+      <defs>
+        {trails.map((_, i) => (
+          <filter key={i} id={`g${i}`}>
+            <feGaussianBlur stdDeviation={trails[i].glow} result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        ))}
+      </defs>
+      {trails.map((t, i) => (
+        <g key={i}>
+          {/* outer glow */}
+          <path
+            d={t.d} fill="none" stroke={t.color}
+            strokeWidth={t.w + t.glow * 0.4}
+            strokeLinecap="round" opacity={0.12}
+            filter={`url(#g${i})`} pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+          {/* core */}
+          <path
+            d={t.d} fill="none" stroke={t.color}
+            strokeWidth={t.w} strokeLinecap="round"
+            opacity={0.9} pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+          {/* hot center */}
+          <path
+            d={t.d} fill="none" stroke="#fff"
+            strokeWidth={Math.max(t.w * 0.25, 0.5)}
+            strokeLinecap="round" opacity={0.35}
+            pathLength={1} strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 const features = [
   {
     icon: Layers,
@@ -335,32 +406,9 @@ export default function Page() {
         ) : (
           /* ═══ LANDING / HERO VIEW ═══ */
           <>
-            {/* Full-screen background image */}
+            {/* Rendered light trails background */}
             <div className="fixed inset-0 z-0">
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: "url('/images/hero-bg.jpg')",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center 30%",
-                  backgroundRepeat: "no-repeat",
-                  animation: "subtle-drift 30s ease-in-out infinite",
-                }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.75) 100%)",
-                }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.5) 100%)",
-                }}
-              />
+              <LightTrails />
             </div>
 
             {/* Navigation */}
