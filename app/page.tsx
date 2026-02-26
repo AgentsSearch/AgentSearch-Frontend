@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { AgentCard, Agent } from "./components/AgentCard";
 import { SearchingAnimation } from "./components/SearchingAnimation";
-import { ArrowRight, Search, Layers, Zap, Shield } from "lucide-react";
+import { ArrowRight, Search, Layers, Zap, Shield, ExternalLink } from "lucide-react";
 
 const mockAgents: Agent[] = [
   {
@@ -524,18 +524,34 @@ function PageContent() {
                   >
                     How it works
                   </span>
-                  <button
-                    className="text-sm px-5 py-2.5 rounded-full backdrop-blur-md hover:bg-white/15 transition-all duration-300"
+                  <a
+                    href="/research.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1 text-sm hover:opacity-80 transition-opacity duration-300"
                     style={{
                       fontFamily: "var(--font-body)",
                       fontWeight: 300,
-                      color: "rgba(255,255,255,0.9)",
-                      background: "rgba(255,255,255,0.08)",
-                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "rgba(255,255,255,0.45)",
                     }}
                   >
-                    Get Started
-                  </button>
+                    Our Research
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a
+                    href="https://github.com/AgentsSearch"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1 text-sm hover:opacity-80 transition-opacity duration-300"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    GitHub
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </motion.div>
               </div>
             </nav>
