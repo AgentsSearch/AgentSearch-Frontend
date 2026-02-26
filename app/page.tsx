@@ -471,6 +471,7 @@ function PageContent() {
                   className="flex items-center gap-8"
                 >
                   <span
+                    onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
                     className="hidden md:inline text-sm cursor-pointer hover:opacity-80 transition-opacity duration-300"
                     style={{
                       fontFamily: "var(--font-body)",
@@ -688,6 +689,7 @@ function PageContent() {
 
               {/* ═══ BELOW THE FOLD — Features ═══ */}
               <section
+                id="how-it-works"
                 className="relative py-32 px-6"
                 style={{ background: "#080808" }}
               >
