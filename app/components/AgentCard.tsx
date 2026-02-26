@@ -86,17 +86,39 @@ function Radar({
           key={i}
           points={pts}
           fill="none"
-          stroke="rgba(0,0,0,0.12)"
+          stroke="rgba(255,255,255,0.08)"
           strokeWidth="1"
         />
       ))}
-
+      {angles.map((a, i) => (
+        <line
+          key={`axis-${i}`}
+          x1={cx}
+          y1={cy}
+          x2={cx + radius * Math.cos(a)}
+          y2={cy + radius * Math.sin(a)}
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth="1"
+        />
+      ))}
       <polygon
         points={polyPoints}
-        fill="#632c2f25"
-        stroke="#632C2F"
+        fill="rgba(255,255,255,0.06)"
+        stroke="rgba(255,255,255,0.4)"
         strokeWidth="1.5"
       />
+      {angles.map((a, i) => {
+        const r = radius * values[i];
+        return (
+          <circle
+            key={`dot-${i}`}
+            cx={cx + r * Math.cos(a)}
+            cy={cy + r * Math.sin(a)}
+            r="2.5"
+            fill="rgba(255,255,255,0.7)"
+          />
+        );
+      })}
     </svg>
   );
 }
@@ -108,51 +130,99 @@ export function AgentCard({ agent, index }: { agent: Agent; index: number }) {
     <motion.div
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className={`rounded-2xl border backdrop-blur-md transition-all duration-300
-        ${agent.rank === 1 ? "bg-white/90 shadow-md py-10 px-10" : "bg-white/70 py-8 px-8"}
-        border-neutral-200/60`}
+      transition={{ delay: index * 0.06, duration: 0.5 }}
+      className={`rounded-2xl transition-all duration-300 ${
+        agent.rank === 1 ? "py-10 px-10" : "py-8 px-8"
+      }`}
+      style={{
+        background: agent.rank === 1
+          ? "rgba(255,255,255,0.05)"
+          : "rgba(255,255,255,0.025)",
+        border: `1px solid ${
+          agent.rank === 1
+            ? "rgba(255,255,255,0.1)"
+            : "rgba(255,255,255,0.06)"
+        }`,
+        backdropFilter: "blur(20px)",
+      }}
     >
       <div className="flex items-start justify-between mb-6">
         <div>
           <h3
-            className={`font-semibold tracking-tight ${
-              agent.rank === 1 ? "text-3xl" : "text-2xl"
+            className={`tracking-tight ${
+              agent.rank === 1 ? "text-2xl" : "text-xl"
             }`}
-            style={{ color: "#5D5346" }}
+            style={{
+              fontFamily: "var(--font-heading)",
+              fontWeight: 200,
+              color: "rgba(255,255,255,0.9)",
+            }}
           >
             {agent.rank}. {agent.name}
           </h3>
-
-          <span className="text-sm text-neutral-500">
+          <span
+            className="text-sm mt-1 inline-block"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontWeight: 300,
+              color: "rgba(255,255,255,0.35)",
+            }}
+          >
             {agent.category}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-200/60 rounded-full px-4 py-1.5">
-          <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-          <span className="font-semibold text-amber-900">
+        <div
+          className="flex items-center gap-2 rounded-full px-4 py-1.5"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <Star className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
+          <span
+            className="text-sm"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontWeight: 400,
+              color: "rgba(255,255,255,0.7)",
+            }}
+          >
             {agent.score.toFixed(1)}
           </span>
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-10 items-start">
-        <Radar breakdown={agent.breakdown} size={agent.rank === 1 ? 170 : 140} />
+        <Radar
+          breakdown={agent.breakdown}
+          size={agent.rank === 1 ? 170 : 140}
+        />
 
-        <div className="flex-1 text-[15px] leading-relaxed text-neutral-700">
-          <p className="mb-4" style={{ color: "#5D5346" }}>
+        <div className="flex-1">
+          <p
+            className="text-[15px] leading-relaxed mb-4"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontWeight: 300,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
             {agent.description}
           </p>
 
           <button
             onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-2 text-sm font-medium mt-2 hover:opacity-70 transition"
-            style={{ color: "#5D5346" }}
+            className="inline-flex items-center gap-2 text-sm mt-2 hover:opacity-70 transition-opacity duration-300"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontWeight: 300,
+              color: "rgba(255,255,255,0.4)",
+            }}
           >
             {expanded ? "Hide details" : "View details"}
             <ChevronDown
-              className={`w-4 h-4 transition-transform ${
+              className={`w-3.5 h-3.5 transition-transform duration-300 ${
                 expanded ? "rotate-180" : ""
               }`}
             />
@@ -169,16 +239,54 @@ export function AgentCard({ agent, index }: { agent: Agent; index: number }) {
               >
                 <div className="space-y-4">
                   {LABELS.map((label) => (
-                    <div key={label} className="border-t border-neutral-200 pt-3">
-                      <div className="flex justify-between mb-1">
-                        <span className="font-medium capitalize">
+                    <div
+                      key={label}
+                      className="pt-3"
+                      style={{
+                        borderTop: "1px solid rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div className="flex justify-between mb-1.5">
+                        <span
+                          className="text-sm capitalize"
+                          style={{
+                            fontFamily: "var(--font-body)",
+                            fontWeight: 400,
+                            color: "rgba(255,255,255,0.6)",
+                          }}
+                        >
                           {label}
                         </span>
-                        <span className="text-neutral-500">
+                        <span
+                          className="text-sm font-mono"
+                          style={{ color: "rgba(255,255,255,0.4)" }}
+                        >
                           {agent.breakdown[label].toFixed(1)}
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-600">
+                      {/* Score bar */}
+                      <div
+                        className="h-[2px] rounded-full overflow-hidden mb-2"
+                        style={{ background: "rgba(255,255,255,0.06)" }}
+                      >
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${(agent.breakdown[label] / 10) * 100}%`,
+                          }}
+                          transition={{ duration: 0.6, delay: 0.1 }}
+                          className="h-full rounded-full"
+                          style={{ background: "rgba(255,255,255,0.25)" }}
+                        />
+                      </div>
+                      <p
+                        className="text-xs"
+                        style={{
+                          fontFamily: "var(--font-body)",
+                          fontWeight: 300,
+                          color: "rgba(255,255,255,0.3)",
+                        }}
+                      >
                         {LABEL_INFO[label]}
                       </p>
                     </div>

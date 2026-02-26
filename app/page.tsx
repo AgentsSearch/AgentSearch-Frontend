@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AgentCard, Agent } from "./components/AgentCard";
 import { SearchingAnimation } from "./components/SearchingAnimation";
-import { Search } from "lucide-react";
+import { ArrowRight, Search, Layers, Zap, Shield } from "lucide-react";
 
 const mockAgents: Agent[] = [
   {
@@ -94,11 +94,170 @@ const mockAgents: Agent[] = [
   },
 ];
 
+const suggestions = [
+  "Code review",
+  "Data analysis",
+  "Content creation",
+  "Research assistant",
+];
+
+const placeholderExamples = [
+  "an agent for code review",
+  "a research assistant",
+  "help with data analysis",
+  "a creative writing partner",
+  "automated testing tools",
+];
+
+const ease = [0.25, 0.1, 0, 1] as const;
+
+/* ─── Light trail definitions ─── */
+// S-curves from back-left to front-right, traversing the full screen.
+// Trails start thin/faint (distance) and end thick/bright (foreground).
+// Red and blue run nearly parallel, like cars on the same road.
+const trails = [
+  // Red — main
+  { d: "M -100 350 C 250 320, 500 500, 750 580 S 1200 520, 1450 620 C 1600 670, 1800 800, 2100 900", color: "#e85a30", w: 3.5, glow: 20, delay: 0 },
+  // Red — parallel accent
+  { d: "M -100 370 C 250 340, 500 520, 750 600 S 1200 540, 1450 640 C 1600 690, 1800 820, 2100 920", color: "#f08050", w: 1.5, glow: 12, delay: 0.05 },
+  // Red — thin inner
+  { d: "M -100 340 C 250 310, 500 490, 750 570 S 1200 510, 1450 610 C 1600 660, 1800 790, 2100 890", color: "#d04020", w: 1, glow: 8, delay: 0.02 },
+  // Blue — main (parallel, slightly below)
+  { d: "M -100 400 C 250 370, 500 550, 750 630 S 1200 570, 1450 670 C 1600 720, 1800 850, 2100 950", color: "#4ac8f0", w: 2.5, glow: 18, delay: 0.1 },
+  // Blue — thin accent
+  { d: "M -100 420 C 250 390, 500 570, 750 650 S 1200 590, 1450 690 C 1600 740, 1800 870, 2100 970", color: "#80d8ff", w: 1, glow: 10, delay: 0.14 },
+];
+
+function LightTrails() {
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => { requestAnimationFrame(() => setDrawn(true)); }, []);
+
+  return (
+    <svg
+      viewBox="0 0 1920 1080"
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 w-full h-full"
+    >
+      <defs>
+        {trails.map((_, i) => (
+          <filter key={i} id={`g${i}`}>
+            <feGaussianBlur stdDeviation={trails[i].glow} result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        ))}
+      </defs>
+      {trails.map((t, i) => (
+        <g key={i}>
+          {/* outer glow */}
+          <path
+            d={t.d} fill="none" stroke={t.color}
+            strokeWidth={t.w + t.glow * 0.4}
+            strokeLinecap="round" opacity={0.12}
+            filter={`url(#g${i})`} pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+          {/* core */}
+          <path
+            d={t.d} fill="none" stroke={t.color}
+            strokeWidth={t.w} strokeLinecap="round"
+            opacity={0.9} pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+          {/* hot center */}
+          <path
+            d={t.d} fill="none" stroke="#fff"
+            strokeWidth={Math.max(t.w * 0.25, 0.5)}
+            strokeLinecap="round" opacity={0.35}
+            pathLength={1} strokeDasharray="1"
+            strokeDashoffset={drawn ? 0 : 1}
+            style={{ transition: `stroke-dashoffset 1s cubic-bezier(.4,0,.2,1) ${t.delay}s` }}
+          />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+const features = [
+  {
+    icon: Layers,
+    title: "Deep Comparison",
+    description:
+      "Evaluate agents across five dimensions — capability, reliability, testability, domain fit, and efficiency.",
+  },
+  {
+    icon: Zap,
+    title: "Instant Matching",
+    description:
+      "Describe your task in natural language. Our engine finds the most compatible agents in seconds.",
+  },
+  {
+    icon: Shield,
+    title: "Trusted Rankings",
+    description:
+      "Every score is backed by transparent breakdowns. No black boxes, no hidden agendas.",
+  },
+];
+
+function TypingPlaceholder() {
+  const [text, setText] = useState("");
+  const [exampleIndex, setExampleIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    const current = placeholderExamples[exampleIndex];
+
+    if (!isDeleting) {
+      if (text.length < current.length) {
+        timeoutRef.current = setTimeout(
+          () => setText(current.slice(0, text.length + 1)),
+          50 + Math.random() * 40
+        );
+      } else {
+        timeoutRef.current = setTimeout(() => setIsDeleting(true), 2200);
+      }
+    } else {
+      if (text.length > 0) {
+        timeoutRef.current = setTimeout(
+          () => setText(text.slice(0, -1)),
+          25
+        );
+      } else {
+        setIsDeleting(false);
+        setExampleIndex((prev) => (prev + 1) % placeholderExamples.length);
+      }
+    }
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [text, isDeleting, exampleIndex]);
+
+  return (
+    <span style={{ color: "rgba(255,255,255,0.25)" }}>
+      {text || "\u00A0"}
+      <motion.span
+        animate={{ opacity: [1, 0] }}
+        transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
+        style={{ color: "rgba(255,255,255,0.4)" }}
+      >
+        |
+      </motion.span>
+    </span>
+  );
+}
+
 export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -120,54 +279,49 @@ export default function Page() {
   const sortedAgents = [...agents].sort((a, b) => a.rank - b.rank);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100">
+    <div className="min-h-screen relative overflow-hidden bg-[#080808]">
       <AnimatePresence>
         {isSearching && (
-          <SearchingAnimation query={searchQuery} onComplete={handleSearchComplete} />
+          <SearchingAnimation
+            query={searchQuery}
+            onComplete={handleSearchComplete}
+          />
         )}
       </AnimatePresence>
 
       <motion.div
-        animate={{
-          y: showResults ? 0 : 0,
-          opacity: isSearching ? 0.3 : 1,
-        }}
+        animate={{ opacity: isSearching ? 0.3 : 1 }}
         transition={{ duration: 0.5 }}
       >
         {showResults ? (
+          /* ═══ RESULTS VIEW ═══ */
           <>
-            <header className="border-b border-neutral-200/50 backdrop-blur-sm bg-white/80 sticky top-0 z-40">
-              <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <header
+              className="sticky top-0 z-40 backdrop-blur-xl"
+              style={{
+                background: "rgba(8, 8, 8, 0.8)",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
                 <button
                   onClick={handleNewSearch}
-                  className="text-2xl font-light hover:text-neutral-600 transition-colors"
-                  style={{ color: "#5D5346" }}
+                  className="text-xl tracking-tight hover:opacity-60 transition-opacity duration-300"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontWeight: 200,
+                    color: "rgba(255,255,255,0.9)",
+                  }}
                 >
                   AgentSearch
                 </button>
 
-                <button
-                  onClick={handleNewSearch}
-                  className="backdrop-blur-md bg-white/60 border border-white/40 px-4 py-2 rounded-xl hover:bg-white/80 transition-all text-sm font-medium shadow-sm"
-                  style={{ color: "#5D5346" }}
-                >
-                  New Search
-                </button>
-              </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-6 py-12">
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-10"
-              >
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleSearch();
                   }}
-                  className="max-w-2xl mx-auto"
+                  className="hidden md:block flex-1 max-w-lg mx-12"
                 >
                   <div className="relative">
                     <input
@@ -175,33 +329,72 @@ export default function Page() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search for agents..."
-                      className="w-full px-6 py-4 pr-14 backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl focus:outline-none focus:bg-white/80 focus:border-white/60 transition-all duration-300 text-base placeholder:text-neutral-400 shadow-lg"
-                      style={{ color: "#5D5346" }}
+                      className="w-full px-5 py-2.5 pr-10 rounded-xl focus:outline-none transition-all duration-300 text-sm"
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        fontWeight: 300,
+                        color: "rgba(255,255,255,0.8)",
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
                     />
+                    <style>{`input::placeholder { color: rgba(255,255,255,0.25) !important; }`}</style>
                     <button
                       type="submit"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 backdrop-blur-md rounded-xl transition-all shadow-lg"
-                      style={{ backgroundColor: "#5D5346" }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2"
                     >
-                      <Search className="w-5 h-5 text-white" />
+                      <Search className="w-4 h-4 text-white/30" />
                     </button>
                   </div>
                 </form>
-              </motion.div>
 
+                <button
+                  onClick={handleNewSearch}
+                  className="text-sm px-5 py-2 rounded-full hover:bg-white/10 transition-all duration-300"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 300,
+                    color: "rgba(255,255,255,0.7)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  New Search
+                </button>
+              </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto px-8 py-16">
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mb-8 text-center"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-14 text-center"
               >
-                <h2 className="text-3xl font-light mb-2" style={{ color: "#5D5346" }}>
-                  Results for <span className="font-medium">"{searchQuery}"</span>
+                <h2
+                  className="text-4xl md:text-5xl mb-4 tracking-[-0.02em]"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    fontWeight: 200,
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                >
+                  Results for{" "}
+                  <span style={{ fontStyle: "italic" }}>
+                    &ldquo;{searchQuery}&rdquo;
+                  </span>
                 </h2>
-                <p className="text-neutral-600">{agents.length} agents found</p>
+                <p
+                  className="text-base"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 300,
+                    color: "rgba(255,255,255,0.4)",
+                  }}
+                >
+                  {agents.length} agents found
+                </p>
               </motion.div>
 
-              <div className="max-w-6xl mx-auto">
+              <div className="max-w-5xl mx-auto">
                 <div className="flex flex-col gap-4">
                   {sortedAgents.map((agent, index) => (
                     <AgentCard key={agent.id} agent={agent} index={index} />
@@ -211,58 +404,379 @@ export default function Page() {
             </main>
           </>
         ) : (
-          <div className="min-h-screen flex items-center justify-center px-6">
-            <div className="w-full max-w-3xl">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="text-center mb-12"
-              >
-                <h1
-                  className="text-6xl md:text-7xl font-light mb-4 tracking-tight"
-                  style={{ color: "#5D5346" }}
-                >
-                  Agent Search
-                </h1>
-                <p className="text-xl text-neutral-600 max-w-xl mx-auto">
-                  Find the best AI agents for your task
-                </p>
-              </motion.div>
-
-              <motion.form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSearch();
-                }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="What do you need help with?"
-                    className="w-full px-8 py-6 pr-16 backdrop-blur-md bg-white/60 border border-white/40 rounded-2xl focus:outline-none focus:bg-white/80 focus:border-white/60 transition-all duration-300 text-lg placeholder:text-neutral-400 shadow-xl"
-                    style={{ color: "#5D5346" }}
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    disabled={!searchQuery.trim()}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-3 backdrop-blur-md disabled:bg-neutral-300 disabled:cursor-not-allowed rounded-xl transition-all shadow-lg"
-                    style={{ backgroundColor: !searchQuery.trim() ? undefined : "#5D5346" }}
-                  >
-                    <Search className="w-6 h-6 text-white" />
-                  </button>
-                </div>
-              </motion.form>
-
-              
+          /* ═══ LANDING / HERO VIEW ═══ */
+          <>
+            {/* Rendered light trails background */}
+            <div className="fixed inset-0 z-0">
+              <LightTrails />
             </div>
-          </div>
+
+            {/* Navigation */}
+            <nav className="fixed top-0 left-0 right-0 z-50">
+              <div className="max-w-7xl mx-auto px-8 py-7 flex items-center justify-between">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease }}
+                >
+                  <span
+                    className="text-lg tracking-[-0.01em]"
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: 200,
+                      color: "rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    AgentSearch
+                  </span>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.1, ease }}
+                  className="flex items-center gap-8"
+                >
+                  <span
+                    className="hidden md:inline text-sm cursor-pointer hover:opacity-80 transition-opacity duration-300"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    How it works
+                  </span>
+                  <button
+                    className="text-sm px-5 py-2.5 rounded-full backdrop-blur-md hover:bg-white/15 transition-all duration-300"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.9)",
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    Get Started
+                  </button>
+                </motion.div>
+              </div>
+            </nav>
+
+            {/* Hero Content */}
+            <main className="relative z-10">
+              <section className="min-h-screen flex flex-col items-center justify-center px-6">
+                <div className="w-full max-w-4xl text-center">
+                  {/* Headline */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1.2, ease }}
+                    className="mb-10"
+                  >
+                    <h1
+                      className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] tracking-[-0.03em]"
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontWeight: 200,
+                        color: "rgba(255,255,255,0.95)",
+                      }}
+                    >
+                      Find your true
+                      <br />
+                      <span style={{ fontStyle: "italic" }}>(tool)</span>{" "}
+                      calling
+                    </h1>
+                  </motion.div>
+
+                  {/* Subtitle */}
+                  <motion.p
+                    initial={{ opacity: 0, y: 25 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1, delay: 0.2, ease }}
+                    className="text-base sm:text-lg md:text-xl mb-16 max-w-md mx-auto leading-relaxed"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.45)",
+                    }}
+                  >
+                    Discover, compare, and deploy the perfect AI agent for any
+                    task.
+                  </motion.p>
+
+                  {/* Search Bar */}
+                  <motion.form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSearch();
+                    }}
+                    initial={{ opacity: 0, y: 25 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1, delay: 0.4, ease }}
+                    className="max-w-xl mx-auto mb-10"
+                  >
+                    <div className="relative group">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        className="w-full px-7 py-5 pr-14 rounded-2xl focus:outline-none transition-all duration-500 text-base backdrop-blur-xl"
+                        style={{
+                          fontFamily: "var(--font-body)",
+                          fontWeight: 300,
+                          color: "rgba(255,255,255,0.9)",
+                          background: isFocused
+                            ? "rgba(255,255,255,0.1)"
+                            : "rgba(255,255,255,0.06)",
+                          border: `1px solid ${
+                            isFocused
+                              ? "rgba(255,255,255,0.2)"
+                              : "rgba(255,255,255,0.1)"
+                          }`,
+                          boxShadow: isFocused
+                            ? "0 8px 40px rgba(0,0,0,0.3)"
+                            : "0 4px 30px rgba(0,0,0,0.15)",
+                        }}
+                        autoFocus
+                      />
+                      {/* Animated placeholder */}
+                      {!searchQuery && !isFocused && (
+                        <div
+                          className="absolute left-7 top-1/2 -translate-y-1/2 pointer-events-none text-base"
+                          style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
+                        >
+                          <span style={{ color: "rgba(255,255,255,0.25)" }}>
+                            Find{" "}
+                          </span>
+                          <TypingPlaceholder />
+                        </div>
+                      )}
+                      {!searchQuery && isFocused && (
+                        <div
+                          className="absolute left-7 top-1/2 -translate-y-1/2 pointer-events-none text-base"
+                          style={{
+                            fontFamily: "var(--font-body)",
+                            fontWeight: 300,
+                            color: "rgba(255,255,255,0.2)",
+                          }}
+                        >
+                          Start typing...
+                        </div>
+                      )}
+                      <button
+                        type="submit"
+                        disabled={!searchQuery.trim()}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-xl transition-all duration-300"
+                        style={{
+                          background: searchQuery.trim()
+                            ? "rgba(255,255,255,0.15)"
+                            : "rgba(255,255,255,0.04)",
+                          cursor: searchQuery.trim()
+                            ? "pointer"
+                            : "not-allowed",
+                        }}
+                      >
+                        <ArrowRight
+                          className="w-4 h-4"
+                          style={{
+                            color: searchQuery.trim()
+                              ? "rgba(255,255,255,0.9)"
+                              : "rgba(255,255,255,0.15)",
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </motion.form>
+
+                  {/* Suggestion Chips */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="flex flex-wrap justify-center gap-3"
+                  >
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => setSearchQuery(suggestion)}
+                        className="text-sm px-4 py-2 rounded-full backdrop-blur-sm hover:bg-white/10 transition-all duration-300"
+                        style={{
+                          fontFamily: "var(--font-body)",
+                          fontWeight: 300,
+                          color: "rgba(255,255,255,0.4)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </motion.div>
+                </div>
+
+                {/* Scroll indicator */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 1.2 }}
+                  className="absolute bottom-10 left-1/2 -translate-x-1/2"
+                >
+                  <motion.div
+                    animate={{ y: [0, 6, 0] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    className="flex flex-col items-center gap-2"
+                  >
+                    <span
+                      className="text-xs"
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        fontWeight: 300,
+                        color: "rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      Learn more
+                    </span>
+                    <div
+                      className="w-[1px] h-6"
+                      style={{
+                        background:
+                          "linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)",
+                      }}
+                    />
+                  </motion.div>
+                </motion.div>
+              </section>
+
+              {/* ═══ BELOW THE FOLD — Features ═══ */}
+              <section
+                className="relative py-32 px-6"
+                style={{ background: "#080808" }}
+              >
+                <div className="max-w-5xl mx-auto">
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.8, ease }}
+                    className="text-center mb-20"
+                  >
+                    <h2
+                      className="text-3xl md:text-5xl mb-5 tracking-[-0.02em]"
+                      style={{
+                        fontFamily: "var(--font-heading)",
+                        fontWeight: 200,
+                        color: "rgba(255,255,255,0.9)",
+                      }}
+                    >
+                      How it works
+                    </h2>
+                    <p
+                      className="text-base max-w-md mx-auto"
+                      style={{
+                        fontFamily: "var(--font-body)",
+                        fontWeight: 300,
+                        color: "rgba(255,255,255,0.35)",
+                      }}
+                    >
+                      Three steps between you and the right agent.
+                    </p>
+                  </motion.div>
+
+                  <div className="grid md:grid-cols-3 gap-8 md:gap-6">
+                    {features.map((feature, i) => (
+                      <motion.div
+                        key={feature.title}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: "-50px" }}
+                        transition={{
+                          duration: 0.6,
+                          delay: i * 0.12,
+                          ease,
+                        }}
+                        className="rounded-2xl p-8 group hover:bg-white/[0.03] transition-all duration-500"
+                        style={{
+                          border: "1px solid rgba(255,255,255,0.05)",
+                        }}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center mb-6"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                          }}
+                        >
+                          <feature.icon
+                            className="w-5 h-5"
+                            style={{ color: "rgba(255,255,255,0.5)" }}
+                            strokeWidth={1.5}
+                          />
+                        </div>
+                        <h3
+                          className="text-lg mb-3"
+                          style={{
+                            fontFamily: "var(--font-heading)",
+                            fontWeight: 200,
+                            color: "rgba(255,255,255,0.85)",
+                          }}
+                        >
+                          {feature.title}
+                        </h3>
+                        <p
+                          className="text-sm leading-relaxed"
+                          style={{
+                            fontFamily: "var(--font-body)",
+                            fontWeight: 300,
+                            color: "rgba(255,255,255,0.35)",
+                          }}
+                        >
+                          {feature.description}
+                        </p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* ═══ Footer ═══ */}
+              <footer
+                className="py-12 px-6"
+                style={{
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                  background: "#080808",
+                }}
+              >
+                <div className="max-w-5xl mx-auto flex items-center justify-between">
+                  <span
+                    className="text-sm"
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: 200,
+                      color: "rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    AgentSearch
+                  </span>
+                  <span
+                    className="text-xs"
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontWeight: 300,
+                      color: "rgba(255,255,255,0.2)",
+                    }}
+                  >
+                    Built for builders.
+                  </span>
+                </div>
+              </footer>
+            </main>
+          </>
         )}
       </motion.div>
     </div>
