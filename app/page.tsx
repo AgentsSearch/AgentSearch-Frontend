@@ -268,6 +268,49 @@ function TypingPlaceholder() {
   );
 }
 
+function TrapezoidNotch() {
+  const ref = useRef<SVGSVGElement>(null);
+  const [opacity, setOpacity] = useState(1);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const section = el.closest("section");
+      if (!section) return;
+      const rect = section.getBoundingClientRect();
+      // Fade from 1→0 as section top goes from bottom of viewport to top
+      const t = Math.max(0, Math.min(1, 1 - rect.top / window.innerHeight));
+      setOpacity(1 - t);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <svg
+      ref={ref}
+      className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none"
+      width="200" height="32" viewBox="0 0 200 32"
+      fill="none"
+      style={{ opacity, transition: "opacity 0.15s ease-out" }}
+    >
+      <defs>
+        <linearGradient id="trapFill" x1="100" y1="0" x2="100" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M 30 32 L 60 0 L 140 0 L 170 32"
+        fill="url(#trapFill)"
+        stroke="rgba(255,255,255,0.07)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
 function PageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -693,6 +736,8 @@ function PageContent() {
                 className="relative py-32 px-6"
                 style={{ background: "#080808" }}
               >
+                {/* Trapeze notch peeking above */}
+                <TrapezoidNotch />
                 <div className="max-w-5xl mx-auto">
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
